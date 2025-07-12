@@ -6,7 +6,7 @@ use std::{env, fs};
 use clap::{command, Parser};
 use dotenv::dotenv;
 
-use crate::video_gpt::{VGConfig, VideoGpt};
+use crate::video_gpt::{Level, VGConfig, VideoGpt};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -15,6 +15,9 @@ struct Cli {
 
     #[arg(short, long)]
     output: Option<String>,
+
+    #[arg(short, long, default_value = "low")]
+    level: Level,
 }
 
 const SUPDATA_ENV: &str = "SUPADATA_KEY";
@@ -27,6 +30,7 @@ async fn main() {
     let cli = Cli::parse();
 
     let video_url = &cli.video_url;
+    let level = cli.level;
 
     let supdata_key =
         env::var(SUPDATA_ENV).unwrap_or_else(|_| panic!("{} must be set", SUPDATA_ENV));
@@ -36,6 +40,7 @@ async fn main() {
     let video_gpt = VideoGpt::new(VGConfig {
         supdata_key,
         anthropic_key,
+        level,
     });
 
     let gpt = video_gpt.get_gpt(video_url).await.unwrap();

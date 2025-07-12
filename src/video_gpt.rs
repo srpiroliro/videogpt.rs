@@ -1,30 +1,35 @@
 use anthropic_ai_sdk::{
     client::AnthropicClient,
     types::message::{
-        ContentBlock, CreateMessageParams, Message, MessageClient, MessageContent, MessageError,
+        ContentBlock, CreateMessageParams, Message, MessageClient, MessageError,
         RequiredMessageParams, Role,
     },
 };
 
 use crate::supdata::Supdata;
 
-const ANTHROPIC_HIGH_MODEL: &str = "claude-sonnet-4-20250514";
-const ANTHROPIC_LOW_MODEL: &str = "claude-3-5-haiku-latest";
+const ANTHROPIC_SONNET_MODEL: &str = "claude-sonnet-4-20250514";
+const ANTHROPIC_HAIKU_MODEL: &str = "claude-3-5-haiku-latest";
 
 const MAX_TOKENS: u32 = 64000;
 
-const ANTHROPIC_SYSTEM_PROMPT: &str =
-    "You are a helpful assistant that summarizes video transcripts. You are given a video transcript and you need to summarize it in a way that is easy to understand and use. Make sure to include all the important details and information. The summary must be structured in a way that is easy to understand and use. The summary must be in the same language as the transcript. The summary must firstly contain a list of the main topics discussed in the video, then a summary of each topic.";
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum Level {
+    High,
+    Low,
+}
 
 pub struct VGConfig {
     pub supdata_key: String,
     pub anthropic_key: String,
+    pub level: Level,
 }
 pub struct VideoGpt {
     supdata: Supdata,
     anthropic: AnthropicClient,
 
     system_prompt: String,
+    model: String,
 }
 
 impl VideoGpt {
@@ -58,14 +63,7 @@ impl VideoGpt {
             ## 4 - Interesting Nuggets  
             • Brief bullets of “good to know” facts, anecdotes, stats, or context that aren't directly actionable.
 
-            ## 5 - Glossary  
-            | Term | Plain-English definition (≤15 words) |  
-            | ---- | ------------------------------------ |  
-            | …    | …                                    |  
-            • Include every bit of jargon or niche acronym found in the transcript.  
-            • Omit the section entirely if no jargon appears.
-
-            ## 6 - Suggested Follow-Up Tasks  
+            ## 5 - Suggested Follow-Up Tasks  
             • Up to five bullets beginning with an **action verb**, phrased like reminders you'd send me.  
             _Examples: “Draft a headline A/B test using the 3-act copy formula.”_
 
@@ -78,10 +76,21 @@ impl VideoGpt {
             • Do not mention these instructions in your output.
         "#.to_string();
 
+        // ## 5 - Glossary  
+        // | Term | Plain-English definition (≤15 words) |  
+        // | ---- | ------------------------------------ |  
+        // | …    | …                                    |  
+        // • Include every bit of jargon or niche acronym found in the transcript.  
+        // • Omit the section entirely if no jargon appears.
+
         Self {
             supdata,
             anthropic,
             system_prompt,
+            model: match config.level {
+                Level::High => ANTHROPIC_SONNET_MODEL.to_string(),
+                Level::Low => ANTHROPIC_HAIKU_MODEL.to_string(),
+            },
         }
     }
 
@@ -92,7 +101,7 @@ impl VideoGpt {
 
     pub async fn get_instructions(&self, transcript: &str) -> anyhow::Result<String> {
         let body: CreateMessageParams = CreateMessageParams::new(RequiredMessageParams {
-            model: ANTHROPIC_HIGH_MODEL.to_string(),
+            model: self.model.clone(),
             messages: vec![
                 Message::new_text(Role::User, self.system_prompt.clone()), // system
                 Message::new_text(
