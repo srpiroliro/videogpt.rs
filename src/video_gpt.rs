@@ -5,6 +5,7 @@ use anthropic_ai_sdk::{
         RequiredMessageParams, Role,
     },
 };
+use anyhow::bail;
 
 use crate::supdata::Supdata;
 
@@ -76,11 +77,11 @@ impl VideoGpt {
             • Do not mention these instructions in your output.
         "#.to_string();
 
-        // ## 5 - Glossary  
-        // | Term | Plain-English definition (≤15 words) |  
-        // | ---- | ------------------------------------ |  
-        // | …    | …                                    |  
-        // • Include every bit of jargon or niche acronym found in the transcript.  
+        // ## 5 - Glossary
+        // | Term | Plain-English definition (≤15 words) |
+        // | ---- | ------------------------------------ |
+        // | …    | …                                    |
+        // • Include every bit of jargon or niche acronym found in the transcript.
         // • Omit the section entirely if no jargon appears.
 
         Self {
@@ -95,8 +96,7 @@ impl VideoGpt {
     }
 
     pub async fn get_transcript(&self, video_url: &str) -> anyhow::Result<String> {
-        let transcript = self.supdata.get_transcript(video_url).await?;
-        Ok(transcript)
+        self.supdata.get_transcript(video_url).await
     }
 
     pub async fn get_instructions(&self, transcript: &str) -> anyhow::Result<String> {

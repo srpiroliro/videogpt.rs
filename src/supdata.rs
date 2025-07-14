@@ -1,3 +1,4 @@
+use anyhow::bail;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
 use std::fmt;
@@ -78,7 +79,13 @@ impl Supdata {
             .send()
             .await?; // throws error if request fails
 
+        let status = response.status();
         let body = response.text().await?; // throws error if response is not valid text
+
+        if !status.is_success() {
+            bail!("Response was not successful! {}", body)
+        }
+
         let response: SupdataResponse = serde_json::from_str(&body)?; // throws error if response is not valid SupdataResponse
 
         Ok(response.content)
